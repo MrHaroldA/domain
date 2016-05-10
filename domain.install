@@ -1,0 +1,116 @@
+<?php
+
+/**
+ * Implements hook_schema().
+ */
+function domain_schema() {
+  $schema['domain'] = array(
+    'description' => 'Stores domain data.',
+    'fields' => array(
+      'id' => array(
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary Key: Unique domain ID.',
+      ),
+      'name' => array(
+        'type' => 'varchar',
+        'length' => 60,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'Unique domain name.',
+      ),
+      'title' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'The domain title.',
+      ),
+      'url' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'default' => '',
+        'description' => 'The domain url.',
+      ),
+      'created' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Timestamp for when domain was created.',
+      ),
+      'changed' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Timestamp for when domain was changed.',
+      ),
+      'theme' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => FALSE,
+        'description' => 'The domain custom theme.',
+      ),
+      'status' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'default' => 0,
+        'size' => 'tiny',
+        'description' => 'Whether the domain is active(1) or blocked(0).',
+      ),
+    ),
+    'indexes' => array(
+      'created' => array('created'),
+    ),
+    'unique keys' => array(
+      'name' => array('name'),
+    ),
+    'primary key' => array('id'),
+  );
+
+  $schema['domain_alias'] = array(
+    'description' => 'Stores domain url aliases.',
+    'fields' => array(
+      'domain_id' => array(
+        'type' => 'int',
+        'not null' => TRUE,
+        'description' => 'Domain ID.',
+      ),
+      'alias' => array(
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'The domain url alias.',
+      ),
+    ),
+    'unique keys' => array(
+      'alias' => array('alias'),
+    ),
+  );
+
+  return $schema;
+}
+
+function domain_update_1() {
+  backdrop_install_schema('domain');
+}
+
+function domain_update_2() {
+  $scheme = domain_schema();
+
+  db_add_field('domain', 'changed', $scheme['domain']['fields']['changed']);
+  db_add_field('domain', 'theme', $scheme['domain']['fields']['theme']);
+}
+
+function domain_update_3() {
+  $scheme = domain_schema();
+
+  db_create_table('domain_alias', $scheme['domain_alias']);
+}
+
+function domain_update_4() {
+  $scheme = domain_schema();
+
+  db_create_table('domain_alias', $scheme['domain_alias']);
+}

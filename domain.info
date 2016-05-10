@@ -1,0 +1,5 @@
+name = Multi Domain support
+description = Enables content and users to be assigned to domains.
+backdrop = 1.x
+
+dependencies[] = options
