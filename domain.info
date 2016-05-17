@@ -1,5 +1,5 @@
-name = Multi Domain support
-description = Enables content and users to be assigned to domains.
+name = Domain
+description = This contains the base functionality to support multiple domains on a single Backdrop installation.
 backdrop = 1.x
-
+package = Domain
 dependencies[] = options

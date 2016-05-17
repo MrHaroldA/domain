@@ -10,6 +10,7 @@
  * - theme select field?
  */
 
+define('DOMAIN_MAX_LENGTH', 60);
 define('DOMAIN_NO_DOMAIN', 0);
 define('DOMAIN_ALL_DOMAINS', '_none'); // @todo: is this a hack?
 define('DOMAIN_CURRENT_DOMAIN', -1); // @todo: can't be saved in an unsigned int. Use instance setting instead.
@@ -192,30 +193,29 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     '#default_value' => $domain->url,
   );
 
-  $form['aliases'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('URL aliases'),
+  $form['domain']['aliases'] = array(
+    '#type' => 'container',
     '#tree' => TRUE,
     '#prefix' => '<div id="aliases">',
     '#suffix' => '</div>',
   );
 
-  $form_state['storage']['aliases'] = isset($form_state['storage']['aliases']) ? $form_state['storage']['aliases'] + 1 : count($domain->aliases);
+  $form_state['storage']['aliases'] = isset($form_state['storage']['aliases']) ? $form_state['storage']['aliases'] : count($domain->aliases);
+  $form_state['storage']['aliases']++;
 
-  if ($form_state['storage']['aliases']) {
-    for ($i = 0; $i < $form_state['storage']['aliases']; $i++) {
-      $form['aliases'][$i] = array(
-        '#title' => t('Alias'),
-        '#type' => 'textfield',
-        '#default_value' => (isset($domain->aliases[$i])) ? $domain->aliases[$i] : '',
-        '#element_validate' => array('domain_element_validate_alias'),
-      );
-    }
+  for ($i = 0; $i < $form_state['storage']['aliases']; $i++) {
+    $form['domain']['aliases'][$i] = array(
+      '#title' => t('URL alias'),
+      '#type' => 'textfield',
+      '#default_value' => (isset($domain->aliases[$i])) ? $domain->aliases[$i] : '',
+      '#element_validate' => array('domain_element_validate_alias'),
+    );
   }
 
-  $form['aliases']['add_alias'] = array(
+  $form['domain']['aliases']['add_alias'] = array(
     '#type' => 'button',
     '#value' => t('Add an alias'),
+    '#limit_validation_errors' => array(),
     '#ajax' => array(
       'callback' => 'domain_ajax_add_alias',
       'wrapper' => 'aliases',
@@ -286,11 +286,14 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
  * Simple AJAX handler to add multiple alias fields.
  */
 function domain_ajax_add_alias($form, $form_state) {
-  return $form['aliases'];
+  return $form['domain']['aliases'];
 }
 
 /**
  * Element validator to validate aliases.
+ *
+ * @todo: check for unique aliases.
+ * @todo: check unreachable address.
  */
 function domain_element_validate_alias($element, &$form_state) {
   $value = $element['#value'];
@@ -304,7 +307,6 @@ function domain_element_validate_alias($element, &$form_state) {
       form_error($element, t('Malformed url.'));
     }
     else {
-      dpm($form_state['values']);
 //      $result = db_query("SELECT domain_id FROM {domain_alias} WHERE alias = :alias AND domain_id != :domain_id", array(
 //        ':alias' => $value,
 //        ':domain_id' => $form_state['values']['#domain']->id,
@@ -321,21 +323,14 @@ function domain_element_validate_alias($element, &$form_state) {
  * @see domain_edit_form()
  */
 function domain_edit_form_submit($form, &$form_state) {
-
-  // Remove unneeded values.
   form_state_values_clean($form_state);
 
+  /* @var $domain \Domain */
   $domain = $form['#domain'];
-  if (empty($domain->created)) {
-    $domain->created = REQUEST_TIME;
-  }
   $domain->changed = REQUEST_TIME;
-
   entity_form_submit_build_entity('domain', $domain, $form, $form_state);
   $status = $domain->save();
 
-  // Terminate if an error occurred while saving the account.
-  $form_state['redirect'] = 'admin/domains/manage';
   switch ($status) {
     case SAVED_UPDATED:
       backdrop_set_message(t('Domain updated.'));
@@ -355,6 +350,8 @@ function domain_edit_form_submit($form, &$form_state) {
       backdrop_set_message(t('Error saving domain.'), 'error');
       return;
   }
+
+  $form_state['redirect'] = 'admin/domains/list';
 }
 
 /**
@@ -383,6 +380,11 @@ function domain_preprocess_page(&$vars) {
   }
 }
 
+/**
+ * Simple helper to create uniform permission names.
+ *
+ * @todo: deprecate?
+ */
 function _domain_permission_key($op, $type) {
   return 'domain ' . $op . ' ' . $type;
 }
@@ -408,19 +410,21 @@ function domain_permission() {
   );
 
   $node_types = node_type_get_types();
-  foreach (domain_get_domain_node_types() as $node_type) {
-    $permissions[_domain_permission_key('edit any', $node_type)] =  array(
-      'title' => t('%type_name: Edit any content', array(
-        '%type_name' => $node_types[$node_type]->name,
-      )),
-      'description' => t('On assigned domains'),
-    );
-    $permissions[_domain_permission_key('delete any', $node_type)] =  array(
-      'title' => t('%type_name: Delete any content', array(
-        '%type_name' => $node_types[$node_type]->name,
-      )),
-      'description' => t('On assigned domains'),
-    );
+  foreach (domain_get_domain_fields('node') as $field) {
+    foreach ($field['bundles']['node'] as $node_type) {
+      $permissions[_domain_permission_key('edit any', $node_type)] = array(
+        'title' => t('%type_name: Edit any content', array(
+          '%type_name' => $node_types[$node_type]->name,
+        )),
+        'description' => t('On assigned domains'),
+      );
+      $permissions[_domain_permission_key('delete any', $node_type)] = array(
+        'title' => t('%type_name: Delete any content', array(
+          '%type_name' => $node_types[$node_type]->name,
+        )),
+        'description' => t('On assigned domains'),
+      );
+    }
   }
 
   return $permissions;
@@ -446,32 +450,19 @@ function domain_get_current_domain_id() {
     $hosts[] = implode('.', $host_parts) . '.';
   }
 
-  // Check for the best/longest host match. @todo: this can be smarter/faster!
-  $result = db_query(
-    "SELECT d.id, d.url FROM {domain} AS d
+  // Check for the exact, or best/longest host match.
+  $domain_id = db_query(
+    "SELECT d.id FROM {domain} AS d
     LEFT JOIN {domain_alias} AS da ON d.id = da.domain_id
     WHERE d.status = :status AND (da.alias IN (:hosts) OR d.url = :host)
-    ORDER BY CHAR_LENGTH(da.alias) DESC",
+    ORDER BY d.url = :host, CHAR_LENGTH(da.alias) DESC
+    LIMIT 1",
     array(
       ':status' => NODE_PUBLISHED,
       ':hosts' => $hosts,
       ':host' => $hosts[0],
     )
-  );
-
-  foreach ($result as $row) {
-
-    // Exact host match?
-    if ($row->url == $hosts[0]) {
-      $domain_id = $row->id;
-      break;
-    }
-
-    // Use the first match as best alias match.
-    elseif (!isset($domain_id)) {
-      $domain_id = $row->id;
-    }
-  }
+  )->fetchField();
 
   return $domain_id;
 }
@@ -490,30 +481,15 @@ function domain_get_domain_titles() {
 }
 
 /**
- * Get all domain node types.
- */
-function domain_get_domain_node_types() {
-  $node_types = array();
-
-  foreach (domain_get_domain_field_instances() as $field) {
-    $info = field_info_field($field['field_name']);
-
-    foreach ($info['bundles']['node'] as $node_type) {
-      $node_types[$node_type] = $node_type;
-    }
-  }
-
-  return $node_types;
-}
-
-/**
  * Implements hook_node_access_records().
  */
 function domain_node_access_records(Node $node) {
   $grants = array();
 
-  foreach (domain_get_domain_field_instances() as $field) {
-    if (isset($node->{$field['field_name']}) && $domain_ids = field_get_items('node', $node, $field['field_name'])) {
+  foreach (domain_get_domain_fields('node') as $field_name => $field) {
+    $domain_ids = field_get_items('node', $node, $field_name);
+
+    if (is_array($domain_ids)) {
       foreach ($domain_ids as $domain_id) {
         $grants[] = array(
           'realm'        => 'domain_view_any',
@@ -554,12 +530,14 @@ function domain_node_grants($account, $op) {
     $grants['domain_view_any'] = array($current_domain);
   }
   else {
-    foreach (domain_get_domain_node_types() as $node_type) {
-      if ($op == 'update' && user_access(_domain_permission_key('edit any', $node_type), $account)) {
-        $grants['domain_edit_any_' . $node_type] = array_keys(_domains_get_assigned_domain_names($account));
-      }
-      if ($op == 'delete' && user_access(_domain_permission_key('delete any', $node_type), $account)) {
-        $grants['domain_delete_any_' . $node_type] = array_keys(_domains_get_assigned_domain_names($account));
+    foreach (domain_get_domain_fields('node') as $field_name => $field) {
+      foreach ($field['bundles']['node'] as $node_type) {
+        if ($op == 'update' && user_access(_domain_permission_key('edit any', $node_type), $account)) {
+          $grants['domain_edit_any_' . $node_type] = array_keys(_domains_get_assigned_domain_names($account));
+        }
+        if ($op == 'delete' && user_access(_domain_permission_key('delete any', $node_type), $account)) {
+          $grants['domain_delete_any_' . $node_type] = array_keys(_domains_get_assigned_domain_names($account));
+        }
       }
     }
   }
@@ -574,9 +552,11 @@ function _domains_get_assigned_domain_names($account) {
   $domain_ids = array();
   $account = user_load($account->uid);
 
-  foreach (domain_get_domain_field_instances() as $field) {
-    if (!empty($account->{$field['field_name']})) {
-      foreach (field_get_items('user', $account, $field['field_name']) as $domain) {
+  foreach (domain_get_domain_fields('user') as $field_name => $field) {
+    $domains = field_get_items('user', $account, $field_name);
+
+    if (is_array($domains)) {
+      foreach ($domains as $domain) {
         $domain_ids[$domain['value']] = $domain['value'];
       }
     }
@@ -590,74 +570,6 @@ function _domains_get_assigned_domain_names($account) {
 }
 
 /**
- * Implements hook_field_info_alter().
- *
- * Add the Domain instance setting to all field types.
- */
-function domain_field_info_alter(&$info) {
-  foreach ($info as $field_type => &$field_type_info) {
-    $field_type_info += array('instance_settings' => array());
-    $field_type_info['instance_settings'] += array(
-      'domain_enable' => FALSE,
-      'domain_all_domains' => FALSE,
-      'domain_current_domain_default' => FALSE,
-    );
-  }
-}
-
-/**
- * Implements hook_form_FORM_ID_alter().
- *
- * Add a checkbox for the Domain instance settings on the 'Edit
- * field instance' form.
- */
-function domain_form_field_ui_field_edit_form_alter(&$form, &$form_state, $form_id) {
-  $instance = $form['#instance'];
-  $bundle = $instance['bundle'];
-  $bundles = field_info_bundles();
-  $entity_type = $instance['entity_type'];
-  $field_info = field_info_field($instance['field_name']);
-
-  if (in_array($instance['entity_type'], array('node')) && $field_info['settings']['entity_type'] == 'domain' && !$form['#field']['locked']) {
-    $form['instance']['settings']['domain_enable'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Use this field to limit access to this %bundle to the configured domains.', array(
-        '%bundle' => $bundles[$entity_type][$bundle]['label'],
-      )),
-      '#default_value' => $instance['settings']['domain_enable'],
-      // Display just below the 'required' checkbox.
-      '#weight' => $form['instance']['required']['#weight'] + .1,
-    );
-    $form['instance']['settings']['domain_all_domains'] = array(
-      '#type' => 'checkbox',
-      '#title' => t('Allow publishing on all Domains for users with the %permission permission.', array(
-        '%permission' => t('Publish to any domain'),
-      )),
-      '#default_value' => $instance['settings']['domain_all_domains'],
-      '#weight' => $form['instance']['settings']['domain_enable']['#weight'] + .1,
-      '#states' => array(
-        'visible' => array(':input[name="instance[settings][domain_enable]"]' => array('checked' => TRUE)),
-      ),
-    );
-  }
-}
-
-/**
- * Implements hook_field_widget_form_alter().
- *
- * @todo: fix current domain selection.
- */
-function domain_field_widget_form_alter(&$element, &$form_state, $context) {
-  $instance = $context['instance'];
-
-  // Add the 'All domains' option.
-  if ($context['field']['type'] == 'reference' && $instance['settings']['domain_enable']) {
-    $element['#options']['_none'] = t('All domains');
-    $element['#options'][DOMAIN_CURRENT_DOMAIN] = t('Current domain');
-  }
-}
-
-/**
  * Implements hook_field_access().
  */
 function domain_field_access($op, $field, $entity_type, $entity, $account) {
@@ -667,27 +579,160 @@ function domain_field_access($op, $field, $entity_type, $entity, $account) {
       return FALSE;
     }
   }
+
+  return TRUE;
 }
 
 /**
- * Get all domain field instances.
- *
- * @todo: actually use $entity_type and $bundle_name.
+ * Get all domain fields.
  */
-function domain_get_domain_field_instances($entity_type = NULL, $bundle_name = NULL) {
-  $instances = &backdrop_static(__FUNCTION__);
+function domain_get_domain_fields($entity_type) {
+  $fields = array();
 
-  if (isset($instances)) {
-    return $instances;
-  }
-
-  foreach (field_info_instances() as $instance) {
-    if ($field['type'] == 'reference') {
-
-
-      $instances[] = $field;
+  foreach (field_info_fields() as $field) {
+    if ($field['type'] == 'domain' && isset($field['bundles'][$entity_type])) {
+      $fields[$field['field_name']] = $field;
     }
   }
-  dpm($instances);
-  return $instances;
+
+  return $fields;
+}
+
+/**
+ * Implements hook_field_info().
+ */
+function domain_field_info() {
+  return array(
+    'domain' => array(
+      'label' => t('Domain'),
+      'description' => t('This field stores the domain id.'),
+      'settings' => array(
+        // @todo: add 'all domains' and 'primary domain' settings?
+      ),
+      'default_widget' => 'domain_select',
+      'default_formatter' => 'domain_title',
+    ),
+  );
+}
+
+/**
+ * Implements hook_options_list().
+ */
+function domain_options_list($field, $instance, $entity_type, $entity) {
+  global $user;
+
+  switch ($entity_type) {
+    case 'node':
+      if (!user_access('bypass node access')) {
+        return _domains_get_assigned_domain_names($user);
+      }
+      break;
+
+    case 'user':
+      if (!user_access('domain assign any')) {
+        return _domains_get_assigned_domain_names($user);
+      }
+      break;
+  }
+
+  return domain_get_domain_titles();
+}
+
+/**
+ * Implements hook_field_is_empty().
+ */
+function domain_field_is_empty($item, $field) {
+  return list_field_is_empty($item, $field);
+}
+
+/**
+ * Implements hook_field_widget_form().
+ *
+ * @see options_field_widget_form()
+ *
+ * @todo add a form element for 'All domains'?
+ */
+function domain_field_widget_form(&$form, &$form_state, $field, $instance, $langcode, $items, $delta, $element) {
+  $instance['widget']['type'] = 'options_' . substr($instance['widget']['type'], 7);
+  $element = options_field_widget_form($form, $form_state, $field, $instance, $langcode, $items, $delta, $element);
+
+  // Set current domain as default for empty but required fields. @todo: use a settings for this.
+  if ($element['#required'] && empty($element['#default_value']) && ($domain = domain_get_current_domain_id()) != DOMAIN_NO_DOMAIN) {
+    $multiple = $field['cardinality'] > 1 || $field['cardinality'] == FIELD_CARDINALITY_UNLIMITED;
+    $element['#default_value'] = ($multiple) ? array($domain) : $domain;
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_formatter_info().
+ */
+function domain_field_formatter_info() {
+  return array(
+    'domain_title' => array(
+      'label' => t('Title'),
+      'field types' => array('domain'),
+    ),
+  );
+}
+
+/**
+ * Implements hook_field_formatter_view().
+ *
+ * @todo: only load referenced domains.
+ */
+function domain_field_formatter_view($entity_type, $entity, $field, $instance, $langcode, $items, $display) {
+  $element = array();
+  $domain_titles = domain_get_domain_titles();
+
+  switch ($display['type']) {
+    case 'domain_title':
+      foreach ($items as $delta => $item) {
+        $element[$delta] = array('#markup' => $domain_titles[$item['value']]);
+      }
+      break;
+  }
+
+  return $element;
+}
+
+/**
+ * Implements hook_field_schema().
+ *
+ * @todo: add primary domain, and all domains fields.
+ */
+function domain_field_schema($field) {
+  $schema = array();
+
+  $schema['columns']['value'] = array(
+    'description' => 'The primary identifier for a domain.',
+    'type' => 'int',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+  );
+
+  return $schema;
+}
+
+/**
+ * Implements hook_field_widget_info().
+ */
+function domain_field_widget_info() {
+  return array(
+    'domain_select' => array(
+      'label' => t('Select list'),
+      'field types' => array('domain'),
+      'behaviors' => array(
+        'multiple values' => FIELD_BEHAVIOR_CUSTOM,
+      ),
+    ),
+    'domain_buttons' => array(
+      'label' => t('Check boxes/radio buttons'),
+      'field types' => array('domain'),
+      'behaviors' => array(
+        'multiple values' => FIELD_BEHAVIOR_CUSTOM,
+      ),
+    ),
+  );
 }

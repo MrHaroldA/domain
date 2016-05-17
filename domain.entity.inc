@@ -50,7 +50,7 @@ class Domain extends Entity {
    *
    * @var integer
    */
-  public $created;
+  public $created = REQUEST_TIME;
 
   /**
    * The timestamp when the domain was last changed.
