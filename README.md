@@ -9,7 +9,6 @@ THIS MODULE IS FAR FROM FINISHED! In fact, it's more like a semi-working proof o
 Requirements
 ------------
 - An up-to-date Backdrop CMS installation
-- https://github.com/MrHaroldA/reference
 
 Features
 ------------
