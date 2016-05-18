@@ -55,20 +55,11 @@ function domain_entity_info() {
 function domain_menu() {
   $items = array();
 
-  $items['admin/domains'] = array(
-    'title' => 'Domains',
-    'page callback' => 'backdrop_get_form',
-    'page arguments' => array('domain_edit_form'),
-    'access arguments' => array('administer domains'),
-    'type' => MENU_LOCAL_ACTION,
-  );
-
-  $items['admin/domains/add'] = array(
+  $items['domain/add'] = array(
     'title' => 'Add domain',
     'page callback' => 'backdrop_get_form',
     'page arguments' => array('domain_edit_form'),
     'access arguments' => array('administer domains'),
-    'type' => MENU_LOCAL_TASK,
   );
 
   $items['domain/%domain/edit'] = array(
@@ -76,14 +67,7 @@ function domain_menu() {
     'page callback' => 'backdrop_get_form',
     'page arguments' => array('domain_edit_form', 1),
     'access arguments' => array('administer domains'),
-  );
-
-  $items['admin/config/domain/settings'] = array(
-    'title' => 'Domain settings',
-    'page callback' => 'backdrop_get_form',
-    'page arguments' => array('user_register_form'),
-    'access arguments' => array('administer domains'),
-    'type' => MENU_LOCAL_ACTION,
+    'type' => MENU_CALLBACK,
   );
 
   return $items;
