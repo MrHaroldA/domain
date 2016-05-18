@@ -91,13 +91,38 @@ function domain_menu_alter(&$items) {
   }
 }
 
-function domain_load_multiple($ids = array(), $conditions = array(), $reset = FALSE) {
-  return entity_load('domain', $ids, $conditions, $reset);
+/**
+ * Implements hook_menu_local_tasks_alter().
+ *
+ * Add action link to add domains on the administer domains page.
+ */
+function domain_menu_local_tasks_alter(&$data, $router_item, $root_path) {
+  if ($root_path == 'admin/domains') {
+    $item = menu_get_item('domain/add');
+    if ($item['access']) {
+      $data['actions']['output'][] = array(
+        '#theme' => 'menu_local_action',
+        '#link' => $item,
+      );
+    }
+  }
 }
 
-function domain_load($id, $reset = FALSE) {
-  $domains = domain_load_multiple(array($id), array(), $reset);
-  return reset($domains);
+/**
+ * Implements hook_admin_paths().
+ */
+function domain_admin_paths() {
+  return array(
+    'domain/add' => TRUE,
+    'domain/*/edit' => TRUE,
+  );
+}
+
+/**
+ * Load a single domain entity as used by hook_menu().
+ */
+function domain_load($id) {
+  return entity_load('domain', $id);
 }
 
 /**
