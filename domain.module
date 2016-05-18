@@ -191,11 +191,16 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
   );
 
   $form['domain']['name'] = array(
-    '#type' => 'textfield',
+    '#type' => 'machine_name',
     '#title' => t('Machine name'),
     '#maxlength' => DOMAIN_MAX_LENGTH,
     '#required' => TRUE,
     '#default_value' => $domain->name,
+    '#machine_name' => array(
+      'exists' => 'domain_name_exists',
+      'source' => array('domain', 'title'),
+      'label' => t('Machine name'),
+    ),
   );
 
   $form['domain']['url'] = array(
@@ -303,6 +308,15 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
  */
 function domain_ajax_add_alias($form, $form_state) {
   return $form['domain']['aliases'];
+}
+
+/**
+ * Returns whether a domain machine name already exists.
+ *
+ * @see domain_edit_form()
+ */
+function domain_name_exists($value) {
+  return db_query_range("SELECT 1 FROM {domain} WHERE name = :name", 0, 1, array(':name' => $value))->fetchField();
 }
 
 /**
