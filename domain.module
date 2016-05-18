@@ -39,7 +39,7 @@ function domain_entity_info() {
           ),
         ),
       ),
-      'view modes' => array( // @todo!
+      'view modes' => array( // @todo; we might not have a view mode?
         'full' => array(
           'label' => t('Domain'),
           'custom settings' => FALSE,
@@ -115,6 +115,7 @@ function domain_admin_paths() {
   return array(
     'domain/add' => TRUE,
     'domain/*/edit' => TRUE,
+    'domain/*/edit/*' => TRUE, // @todo: this isn't set in node_admin_paths() either?
   );
 }
 
@@ -127,6 +128,8 @@ function domain_load($id) {
 
 /**
  * Implements hook_custom_theme().
+ *
+ * @todo: move to a separate module; or implement in the (future) config overrides?
  */
 function domain_custom_theme() {
   if (($domain_id = domain_get_current_domain_id()) != DOMAIN_NO_DOMAIN) {
@@ -155,7 +158,9 @@ function domain_autoload_info() {
 }
 
 /**
- * Helper function to add default user account fields to user registration and edit form.
+ * Domain add or edit form.
+ *
+ * @todo: convert extra fields to "extra fields" ;)
  */
 function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
   if (empty($domain)) {
@@ -167,7 +172,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
 
   $form['#domain'] = $domain;
 
-  // Account information.
+  // Domain information.
   $form['domain'] = array(
     '#type'   => 'container',
     '#weight' => -10,
@@ -196,16 +201,18 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
   $form['domain']['url'] = array(
     '#type' => 'textfield',
     '#title' => t('URL'),
-    '#description' => t('Absolute url this domain is hosted on.'),
-    '#maxlength' => 255, // @todo
+    '#description' => t('Absolute url this domain is hosted on, without http:// or https:// prefix.'),
+    '#maxlength' => 255,
     '#required' => TRUE,
     '#default_value' => $domain->url,
   );
 
   $form['domain']['aliases'] = array(
-    '#type' => 'container',
+    '#title' => t('URL aliases'),
+    '#description' => t('Wildcards like <em>test.</em> will match all URLs beginning with the <em>test</em> subdomain.'),
+    '#type' => 'fieldset',
     '#tree' => TRUE,
-    '#prefix' => '<div id="aliases">',
+    '#prefix' => '<div id="domain-aliases">',
     '#suffix' => '</div>',
   );
 
@@ -214,7 +221,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
 
   for ($i = 0; $i < $form_state['storage']['aliases']; $i++) {
     $form['domain']['aliases'][$i] = array(
-      '#title' => t('URL alias'),
+      '#title' => t('Alias @index', array('@index' => $i + 1)),
       '#type' => 'textfield',
       '#default_value' => (isset($domain->aliases[$i])) ? $domain->aliases[$i] : '',
       '#element_validate' => array('domain_element_validate_alias'),
@@ -227,7 +234,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     '#limit_validation_errors' => array(),
     '#ajax' => array(
       'callback' => 'domain_ajax_add_alias',
-      'wrapper' => 'aliases',
+      'wrapper' => 'domain-aliases',
     ),
   );
 
@@ -310,10 +317,10 @@ function domain_element_validate_alias($element, &$form_state) {
     $parsed = parse_url($value);
 
     if (isset($parsed['scheme'])) {
-      form_error($element, t('Enter aliases without scheme.'));
+      form_error($element, t('%title has a url with a scheme.', array('%title' => $element['#title'])));
     }
     elseif ($parsed === FALSE || !valid_url('http://' . $value, TRUE)) {
-      form_error($element, t('Malformed url.'));
+      form_error($element, t('%title has a malformed url.', array('%title' => $element['#title'])));
     }
     else {
 //      $result = db_query("SELECT domain_id FROM {domain_alias} WHERE alias = :alias AND domain_id != :domain_id", array(
@@ -383,6 +390,7 @@ function domain_preprocess_page(&$vars) {
     $vars['classes'][] = 'domain-no-domain';
   }
   else {
+    /* @var $domain \Domain */
     $domain = domain_load($domain_id);
     $vars['classes'][] = 'domain-id-' . $domain->id;
     $vars['classes'][] = 'domain-name-' . backdrop_clean_css_identifier($domain->name);
@@ -473,7 +481,7 @@ function domain_get_current_domain_id() {
     )
   )->fetchField();
 
-  return $domain_id;
+  return (int) $domain_id;
 }
 
 /**
