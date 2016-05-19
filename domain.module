@@ -131,6 +131,59 @@ function domain_load($id) {
 }
 
 /**
+ * Implements hook_requirements().
+ */
+function domain_requirements($phase) {
+  $requirements = array();
+  $t = get_t();
+
+  if ($phase == 'runtime') {
+    $errors = array();
+
+    // Check for domains.
+    $domain_count = db_query("SELECT count(*) FROM domain WHERE status = 1")->fetchField();
+    if (!$domain_count) {
+      $errors[] = $t('There are no domains configured.');
+    }
+    elseif ($domain_count == 1) {
+      $errors[] = $t('You must define more than one domain to fully use this functionality.');
+    }
+
+    // Check for domain fields.
+    $field_count = 0;
+    foreach (array_keys(entity_get_info()) as $entity_type) {
+      $field_count += count(domain_get_domain_fields($entity_type));
+    }
+    if (!$field_count) {
+      $errors[] = $t('There are no domain fields added to any entity types.');
+    }
+
+    // Report findings.
+    if (count($errors)) {
+      $requirements['domain'] = array(
+        'description' => implode(' ', $errors),
+        'severity' => ($domain_count == 1 && count($errors) == 1) ? REQUIREMENT_WARNING : REQUIREMENT_ERROR,
+        'value' => $t('Incomplete'),
+      );
+    }
+    else {
+      $requirements['domain'] = array(
+        'description' => $t('There are @domain_count domains and @field_count domain fields configured.', array(
+          '@domain_count' => $domain_count,
+          '@field_count' => $field_count,
+        )),
+        'severity' => REQUIREMENT_OK,
+        'value' => $t('Complete'),
+      );
+    }
+
+    $requirements['domain']['title'] = $t('Domain configuration');
+  }
+
+  return $requirements;
+}
+
+/**
  * Implements hook_custom_theme().
  *
  * @todo: move to a separate module; or implement in the (future) config overrides?
