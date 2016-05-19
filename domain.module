@@ -166,6 +166,11 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
 
   $form['#domain'] = $domain;
 
+  $form['domain'] = array(
+    '#type' => 'value',
+    '#value' => $domain,
+  );
+
   $form['title'] = array(
     '#type' => 'textfield',
     '#title' => t('Title'),
@@ -194,26 +199,29 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     '#maxlength' => 255,
     '#required' => TRUE,
     '#default_value' => $domain->url,
+    '#element_validate' => array('domain_element_validate_url'),
   );
+
+  $form_state['storage']['aliases'] = isset($form_state['storage']['aliases']) ? $form_state['storage']['aliases'] : count($domain->aliases);
+  $form_state['storage']['aliases']++;
 
   $form['aliases'] = array(
     '#title' => t('URL aliases'),
     '#description' => t('Wildcards like <em>test.</em> will match all URLs beginning with the <em>test</em> subdomain.'),
     '#type' => 'fieldset',
+    '#collapsible' => TRUE,
+    '#collapsed' => $form_state['storage']['aliases'] <= 1,
     '#tree' => TRUE,
     '#prefix' => '<div id="domain-aliases">',
     '#suffix' => '</div>',
   );
-
-  $form_state['storage']['aliases'] = isset($form_state['storage']['aliases']) ? $form_state['storage']['aliases'] : count($domain->aliases);
-  $form_state['storage']['aliases']++;
 
   for ($i = 0; $i < $form_state['storage']['aliases']; $i++) {
     $form['aliases'][$i] = array(
       '#title' => t('Alias @index', array('@index' => $i + 1)),
       '#type' => 'textfield',
       '#default_value' => (isset($domain->aliases[$i])) ? $domain->aliases[$i] : '',
-      '#element_validate' => array('domain_element_validate_alias'),
+      '#element_validate' => array('domain_element_validate_url'),
     );
   }
 
@@ -306,11 +314,11 @@ function domain_name_exists($value) {
 /**
  * Element validator to validate aliases.
  *
- * @todo: check for unique aliases.
  * @todo: check unreachable address.
  */
-function domain_element_validate_alias($element, &$form_state) {
+function domain_element_validate_url($element, &$form_state) {
   $value = $element['#value'];
+
   if ($value != '') {
     $parsed = parse_url($value);
 
@@ -321,18 +329,46 @@ function domain_element_validate_alias($element, &$form_state) {
       form_error($element, t('%title has a malformed url.', array('%title' => $element['#title'])));
     }
     else {
-//      $result = db_query("SELECT domain_id FROM {domain_alias} WHERE alias = :alias AND domain_id != :domain_id", array(
-//        ':alias' => $value,
-//        ':domain_id' => $form_state['values']['#domain']->id,
-//      ))->fetchField();
 
-//      dpm($result);
+      // Check for other domains with the same url.
+      $result = db_query_range("SELECT 1 FROM {domain} WHERE url = :url AND id != :domain_id", 0, 1, array(
+        ':url' => $value,
+        ':domain_id' => $form_state['values']['domain']->id,
+      ))->fetchField();
+
+      if ($result) {
+        form_error($element, t('%title is a url for an other domain.', array('%title' => $element['#title'])));
+      }
+
+      // Check for other domains with the same alias.
+      $result = db_query_range("SELECT 1 FROM {domain_alias} WHERE alias = :alias AND domain_id != :domain_id", 0, 1, array(
+        ':alias' => $value,
+        ':domain_id' => $form_state['values']['domain']->id,
+      ))->fetchField();
+
+      if ($result) {
+        form_error($element, t('%title is an alias for an other domain.', array('%title' => $element['#title'])));
+      }
     }
   }
 }
 
 /**
- * Submit handler for the domain add form.
+ * Validate handler for the domain edit form.
+ *
+ * @see domain_edit_form()
+ */
+function domain_edit_form_validate($form, &$form_state) {
+  if (in_array($form_state['values']['url'], $form_state['values']['aliases'])) {
+    form_set_error('url', t('The url and one or more aliases are the same.'));
+  }
+
+  // Clean up duplicate aliases.
+  $form_state['values']['aliases'] = array_unique($form_state['values']['aliases']);
+}
+
+/**
+ * Submit handler for the domain edit form.
  *
  * @see domain_edit_form()
  */
