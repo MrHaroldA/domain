@@ -39,12 +39,6 @@ function domain_entity_info() {
           ),
         ),
       ),
-      'view modes' => array( // @todo; we might not have a view mode?
-        'full' => array(
-          'label' => t('Domain'),
-          'custom settings' => FALSE,
-        ),
-      ),
     ),
   );
 }
@@ -172,17 +166,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
 
   $form['#domain'] = $domain;
 
-  // Domain information.
-  $form['domain'] = array(
-    '#type'   => 'container',
-    '#weight' => -10,
-  );
-
-  $form['domain']['domain'] = array(
-    '#type' => 'value',
-    '#value' => $domain,
-  );
-  $form['domain']['title'] = array(
+  $form['title'] = array(
     '#type' => 'textfield',
     '#title' => t('Title'),
     '#maxlength' => DOMAIN_MAX_LENGTH,
@@ -190,7 +174,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     '#default_value' => $domain->title,
   );
 
-  $form['domain']['name'] = array(
+  $form['name'] = array(
     '#type' => 'machine_name',
     '#title' => t('Machine name'),
     '#maxlength' => DOMAIN_MAX_LENGTH,
@@ -198,12 +182,12 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     '#default_value' => $domain->name,
     '#machine_name' => array(
       'exists' => 'domain_name_exists',
-      'source' => array('domain', 'title'),
+      'source' => array('title'),
       'label' => t('Machine name'),
     ),
   );
 
-  $form['domain']['url'] = array(
+  $form['url'] = array(
     '#type' => 'textfield',
     '#title' => t('URL'),
     '#description' => t('Absolute url this domain is hosted on, without http:// or https:// prefix.'),
@@ -212,7 +196,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     '#default_value' => $domain->url,
   );
 
-  $form['domain']['aliases'] = array(
+  $form['aliases'] = array(
     '#title' => t('URL aliases'),
     '#description' => t('Wildcards like <em>test.</em> will match all URLs beginning with the <em>test</em> subdomain.'),
     '#type' => 'fieldset',
@@ -225,7 +209,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
   $form_state['storage']['aliases']++;
 
   for ($i = 0; $i < $form_state['storage']['aliases']; $i++) {
-    $form['domain']['aliases'][$i] = array(
+    $form['aliases'][$i] = array(
       '#title' => t('Alias @index', array('@index' => $i + 1)),
       '#type' => 'textfield',
       '#default_value' => (isset($domain->aliases[$i])) ? $domain->aliases[$i] : '',
@@ -233,7 +217,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     );
   }
 
-  $form['domain']['aliases']['add_alias'] = array(
+  $form['aliases']['add_alias'] = array(
     '#type' => 'button',
     '#value' => t('Add an alias'),
     '#limit_validation_errors' => array(),
@@ -249,7 +233,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
       $themes[$theme->name] = $theme->info['name'];
     }
   }
-  $form['domain']['theme'] = array(
+  $form['theme'] = array(
     '#type' => 'select',
     '#options' => $themes,
     '#empty_option' => t('- None -'),
@@ -257,7 +241,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     '#default_value' => $domain->theme,
   );
 
-  $form['domain']['status'] = array(
+  $form['status'] = array(
     '#type' => 'radios',
     '#title' => t('Status'),
     '#options' => array(
@@ -307,7 +291,7 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
  * Simple AJAX handler to add multiple alias fields.
  */
 function domain_ajax_add_alias($form, $form_state) {
-  return $form['domain']['aliases'];
+  return $form['aliases'];
 }
 
 /**
@@ -627,6 +611,46 @@ function domain_get_domain_fields($entity_type) {
   }
 
   return $fields;
+}
+
+/**
+ * Implements hook_field_extra_fields().
+ */
+function domain_field_extra_fields() {
+  $extra = array();
+  $weight = 0;
+
+  $extra['domain']['domain'] = array(
+    'form' => array(
+      'title' => array(
+        'label' => t('Title'),
+        'description' => t('Domain module title form element.'),
+        'weight' => $weight++,
+      ),
+      'url' => array(
+        'label' => t('URL'),
+        'description' => t('Domain module url form element.'),
+        'weight' => $weight++,
+      ),
+      'aliases' => array(
+        'label' => t('Aliases'),
+        'description' => t('Domain module aliases form element.'),
+        'weight' => $weight++,
+      ),
+      'theme' => array(
+        'label' => t('Theme'),
+        'description' => t('Domain module theme form element.'),
+        'weight' => $weight++,
+      ),
+      'status' => array(
+        'label' => t('Status'),
+        'description' => t('Domain module status form element.'),
+        'weight' => $weight++,
+      ),
+    ),
+  );
+
+  return $extra;
 }
 
 /**
