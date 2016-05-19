@@ -219,7 +219,6 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     '#description' => t('Wildcards like <em>test.</em> will match all URLs beginning with the <em>test</em> subdomain.'),
     '#type' => 'fieldset',
     '#collapsible' => TRUE,
-    '#collapsed' => $form_state['storage']['aliases'] <= 1,
     '#tree' => TRUE,
     '#prefix' => '<div id="domain-aliases">',
     '#suffix' => '</div>',
