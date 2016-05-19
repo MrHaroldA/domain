@@ -277,13 +277,13 @@ function domain_views_data() {
     ),
   );
 
-/*  $data['domain']['cancel_node'] = array(
+  $data['domain']['delete_link'] = array(
     'field' => array(
-      'title' => t('Cancel link'),
-      'help' => t('Provide a simple link to cancel the user.'),
-      'handler' => 'views_handler_field_user_link_cancel',
+      'title' => t('Delete link'),
+      'help' => t('Provide a simple link to delete the domain.'),
+      'handler' => 'views_handler_field_domain_link_delete',
     ),
-  );*/
+  );
 
 /*  $data['domain']['bulk_form'] = array(
     'title' => t('Bulk operations'),

@@ -64,6 +64,14 @@ function domain_menu() {
     'type' => MENU_CALLBACK,
   );
 
+  $items['domain/%domain/delete'] = array(
+    'title' => 'Edit',
+    'page callback' => 'backdrop_get_form',
+    'page arguments' => array('domain_delete_confirm', 1),
+    'access arguments' => array('administer domains'),
+    'type' => MENU_CALLBACK,
+  );
+
   return $items;
 }
 
@@ -110,6 +118,8 @@ function domain_admin_paths() {
     'domain/add' => TRUE,
     'domain/*/edit' => TRUE,
     'domain/*/edit/*' => TRUE, // @todo: this isn't set in node_admin_paths() either?
+    'domain/*/delete' => TRUE,
+    'domain/*/delete/*' => TRUE, // @todo: this isn't set in node_admin_paths() either?
   );
 }
 
@@ -148,13 +158,12 @@ function domain_autoload_info() {
     'views_handler_field_domain' => 'views/views_handler_field_domain.inc',
     'views_handler_field_domain_link' => 'views/views_handler_field_domain_link.inc',
     'views_handler_field_domain_link_edit' => 'views/views_handler_field_domain_link_edit.inc',
+    'views_handler_field_domain_link_delete' => 'views/views_handler_field_domain_link_delete.inc',
   );
 }
 
 /**
  * Domain add or edit form.
- *
- * @todo: convert extra fields to "extra fields" ;)
  */
 function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
   if (empty($domain)) {
@@ -284,6 +293,13 @@ function domain_edit_form($form, &$form_state, \Domain $domain = NULL) {
     '#type' => 'submit',
     '#value' => (empty($domain->id)) ? t('Create new domain') : t('Update domain'),
   );
+  if (!empty($domain->id)) {
+    $form['actions']['delete'] = array(
+      '#type' => 'submit',
+      '#value' => t('Delete'),
+      '#submit' => array('domain_edit_form_delete_submit'),
+    );
+  }
   $form['actions']['cancel'] = array(
     '#type' => 'link',
     '#title' => t('Cancel'),
@@ -402,6 +418,65 @@ function domain_edit_form_submit($form, &$form_state) {
   }
 
   $form_state['redirect'] = 'admin/domains/list';
+}
+
+/**
+ * Form submission handler for the 'Delete' button for node_form().
+ *
+ * @see node_form_validate()
+ * @see node_form_submit()
+ * @see node_form_submit_build_node()
+ */
+function domain_edit_form_delete_submit($form, &$form_state) {
+  $destination = array();
+  if (isset($_GET['destination'])) {
+    $destination = backdrop_get_destination();
+    unset($_GET['destination']);
+  }
+
+  /* @var $domain \Domain */
+  $domain = $form['#domain'];
+  $form_state['redirect'] = array('domain/' . $domain->id . '/delete', array('query' => $destination));
+}
+
+/**
+ * Page callback: Form constructor for node deletion confirmation form.
+ *
+ * @see node_menu()
+ * @see node_delete_confirm_submit()
+ */
+function domain_delete_confirm($form, &$form_state, \Domain $domain) {
+  $form['#domain'] = $domain;
+
+  $form['id'] = array(
+    '#type' => 'value',
+    '#value' => $domain->id,
+  );
+
+  return confirm_form($form,
+    t('Are you sure you want to delete the %title domain?', array('%title' => $domain->title)),
+    'admin/domains',
+    t('This action cannot be undone.'),
+    t('Delete'),
+    t('Cancel')
+  );
+}
+
+/**
+ * Form submission handler for node_delete_confirm().
+ *
+ * @see node_delete_confirm()
+ */
+function domain_delete_confirm_submit($form, &$form_state) {
+  if ($form_state['values']['confirm']) {
+    /* @var $domain \Domain */
+    $domain = domain_load($form_state['values']['id']);
+    entity_delete_multiple('domain', array($form_state['values']['id']));
+    watchdog('domain', 'Deleted %title.', array('%title' => $domain->title));
+    backdrop_set_message(t('%title has been deleted.', array('%title' => $domain->title)));
+  }
+
+  $form_state['redirect'] = 'admin/domains';
 }
 
 /**
