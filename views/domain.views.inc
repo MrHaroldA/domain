@@ -105,6 +105,27 @@ function domain_views_data() {
     ),
   );
 
+  // url
+  $data['domain']['url'] = array(
+    'title' => t('URL'), // The item it appears as on the UI,
+    'help' => t('The main domain URL.'), // The help that appears on the UI,
+    'field' => array(
+      'handler' => 'views_handler_field_domain',
+      'click sortable' => TRUE,
+    ),
+    'sort' => array(
+      'handler' => 'views_handler_sort',
+    ),
+    'argument' => array(
+      'handler' => 'views_handler_argument_string',
+    ),
+    'filter' => array(
+      'handler' => 'views_handler_filter_string',
+      'title' => t('URL (raw)'),
+      'help' => t('The main domain URL. This filter does not check if the domain exists and allows partial matching. Does not utilize autocomplete.')
+    ),
+  );
+
   // created field
   $data['domain']['created'] = array(
     'title' => t('Created date'), // The item it appears as on the UI,

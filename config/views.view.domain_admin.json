@@ -152,6 +152,57 @@
             "anonymous_text": "",
             "format_username": 1
           },
+          "url": {
+            "id": "url",
+            "table": "domain",
+            "field": "url",
+            "relationship": "none",
+            "group_type": "group",
+            "ui_name": "",
+            "label": "URL",
+            "exclude": 0,
+            "alter": {
+              "alter_text": 0,
+              "text": "",
+              "make_link": 0,
+              "path": "",
+              "absolute": 0,
+              "external": 0,
+              "replace_spaces": 0,
+              "path_case": "none",
+              "trim_whitespace": 0,
+              "alt": "",
+              "rel": "",
+              "link_class": "",
+              "prefix": "",
+              "suffix": "",
+              "target": "",
+              "nl2br": 0,
+              "max_length": "",
+              "word_boundary": 1,
+              "ellipsis": 1,
+              "more_link": 0,
+              "more_link_text": "",
+              "more_link_path": "",
+              "strip_tags": 0,
+              "trim": 0,
+              "preserve_tags": "",
+              "html": 0
+            },
+            "element_type": "",
+            "element_class": "",
+            "element_label_type": "",
+            "element_label_class": "",
+            "element_label_colon": 1,
+            "element_wrapper_type": "",
+            "element_wrapper_class": "",
+            "element_default_classes": 1,
+            "empty": "",
+            "hide_empty": 0,
+            "empty_zero": 0,
+            "hide_alter_empty": 1,
+            "link_to_domain": 0
+          },
           "status": {
             "id": "status",
             "table": "domain",
@@ -527,9 +578,11 @@
           "columns": {
             "title": "title",
             "name": "name",
+            "url": "url",
             "status": "status",
             "changed": "changed",
             "edit_link": "edit_link",
+            "delete_link": "delete_link",
             "dropbutton": "dropbutton"
           },
           "info": {
@@ -541,6 +594,13 @@
               "empty_column": 0
             },
             "name": {
+              "sortable": 1,
+              "default_sort_order": "asc",
+              "align": "",
+              "separator": "",
+              "empty_column": 0
+            },
+            "url": {
               "sortable": 1,
               "default_sort_order": "asc",
               "align": "",
@@ -566,6 +626,11 @@
               "separator": "",
               "empty_column": 0
             },
+            "delete_link": {
+              "align": "",
+              "separator": "",
+              "empty_column": 0
+            },
             "dropbutton": {
               "align": "",
               "separator": "",
@@ -574,6 +639,20 @@
           },
           "default": "changed",
           "empty_table": 0
+        },
+        "empty": {
+          "area_text_custom": {
+            "id": "area_text_custom",
+            "table": "views",
+            "field": "area_text_custom",
+            "relationship": "none",
+            "group_type": "group",
+            "ui_name": "",
+            "label": "",
+            "empty": true,
+            "content": "No domains available.",
+            "tokenize": 0
+          }
         }
       }
     },
