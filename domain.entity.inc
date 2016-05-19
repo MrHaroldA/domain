@@ -153,10 +153,9 @@ class DomainStorageController extends EntityDatabaseStorageController {
     // Delete the Domain entities first.
     try {
       parent::delete($ids);
+      db_query("DELETE FROM {domain_alias} WHERE domain_id IN (:domain_ids)", array(':domain_ids' => $ids));
     } catch (Exception $e) {
       throw $e;
     }
-
-    backdrop_set_breadcrumb('@TODO: replace with default entity reference widget.');
   }
 }
