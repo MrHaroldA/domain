@@ -524,7 +524,7 @@ function domain_delete_confirm_submit($form, &$form_state) {
     /* @var $domain \Domain */
     $domain = domain_load($form_state['values']['id']);
     entity_delete_multiple('domain', array($form_state['values']['id']));
-    watchdog('domain', 'Deleted %title.', array('%title' => $domain->title));
+    watchdog('domain', 'Deleted domain: %title.', array('%title' => $domain->title));
     backdrop_set_message(t('%title has been deleted.', array('%title' => $domain->title)));
   }
 
@@ -711,10 +711,10 @@ function domain_node_grants($account, $op) {
     foreach (domain_get_domain_fields('node') as $field_name => $field) {
       foreach ($field['bundles']['node'] as $node_type) {
         if ($op == 'update' && user_access(_domain_permission_key('edit any', $node_type), $account)) {
-          $grants['domain_edit_any_' . $node_type] = array_keys(_domains_get_assigned_domain_names($account));
+          $grants['domain_edit_any_' . $node_type] = array_keys(_domains_get_assigned_domain_titles($account));
         }
         if ($op == 'delete' && user_access(_domain_permission_key('delete any', $node_type), $account)) {
-          $grants['domain_delete_any_' . $node_type] = array_keys(_domains_get_assigned_domain_names($account));
+          $grants['domain_delete_any_' . $node_type] = array_keys(_domains_get_assigned_domain_titles($account));
         }
       }
     }
@@ -726,7 +726,7 @@ function domain_node_grants($account, $op) {
 /**
  * Get all domains assigned to the account.
  */
-function _domains_get_assigned_domain_names($account) {
+function _domains_get_assigned_domain_titles($account) {
   $domain_ids = array();
   $account = user_load($account->uid);
 
@@ -842,13 +842,13 @@ function domain_options_list($field, $instance, $entity_type, $entity) {
   switch ($entity_type) {
     case 'node':
       if (!user_access('bypass node access')) {
-        return _domains_get_assigned_domain_names($user);
+        return _domains_get_assigned_domain_titles($user);
       }
       break;
 
     case 'user':
       if (!user_access('domain assign any')) {
-        return _domains_get_assigned_domain_names($user);
+        return _domains_get_assigned_domain_titles($user);
       }
       break;
   }
