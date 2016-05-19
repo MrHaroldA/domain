@@ -396,6 +396,9 @@ function domain_element_validate_url($element, &$form_state) {
     elseif ($parsed === FALSE || !valid_url('http://' . $value, TRUE)) {
       form_error($element, t('%title has a malformed url.', array('%title' => $element['#title'])));
     }
+    elseif (strpos($value, '/') !== FALSE) {
+      form_error($element, t('%title contains a forward slash.', array('%title' => $element['#title'])));
+    }
     else {
 
       // Check for other domains with the same url.
